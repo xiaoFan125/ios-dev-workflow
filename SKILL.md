@@ -469,20 +469,3 @@ func handleFailure(_ error: Error) {
 63. **闭包版 vs async 版 send 回调线程不一致** — 闭包版 `send` 保证主线程回调（`DispatchQueue.main.async`），async 版 `send` 的 continuation 在 `networkClient` 回调线程 resume，不保证主线程。**修复**: async 版 `performSend` 中用 `@MainActor` 确保恢复到主线程
 64. **token 刷新重试跳过所有插件** — `send` 方法 token 刷新重试时传 `plugins: []`，跳过所有插件（包括 logging、analytics、certificate pinning）。如果某些插件对请求正确性有影响（如添加签名 header），重试请求可能失败。**修复**: 区分"一次性插件"和"始终需要的插件"
 
-## 参考文档
-
-详见 `references/` 目录：
-- `swift-module-split-pattern.md` — Swift 模块拆分模式：通用库 + 业务层（@_exported import、签名收敛、配置隔离）
-- `agora-subscribe-state-callback.md` — Agora SDK didAudioSubscribeStateChange 调查
-- `networkkit-architecture-and-review.md` — NetworkCore 架构、迁移模式、线程安全、代码审查清单（合并自 migration/thread-safety 三份文档）
-- `github-privacy-sanitization.md` — GitHub 仓库隐私清理多轮扫描指南
-- `system-volume-sync-pattern.md` — iOS 系统音量同步到 BLE 设备
-- `ble-agora-protocol.md` — BLE/Agora 协议模式
-- `ui-refresh-patterns.md` — UI 刷新模式
-- `voice-stream-protocol-patterns.md` — Voice stream 协议
-- `ble-multi-device-state-pitfalls.md` — BLE 多设备状态管理 Pitfalls（stale currentModel、仓电量、回调归属）
-- `swift6-concurrency-pitfalls.md` — Swift 6 并发陷阱
-- `multipart-upload-target-pattern.md` — Multipart 上传 Target 模式
-- `sendbizapi-return-contract-pitfall.md` — sendRequest 返回契约 Pitfall（根因级）
-- `cloud-api-uid-completeness.md` — Cloud API uid 参数完整性清单
-- `api-path-alignment-checklist.md` — API Path 对齐清单（旧代码 vs 新代码）
