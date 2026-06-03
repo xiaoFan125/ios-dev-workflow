@@ -1,7 +1,6 @@
 ---
 name: ios-dev-workflow
 description: "Hermes 调度 Claude Code（深度实现）+ Codex（验证/备选）的 iOS 开发范式，遵循控制论六原则。"
-version: 3.1.0
 author: Hermes Agent
 license: MIT
 platforms: [macos]
@@ -11,7 +10,7 @@ metadata:
     related_skills: [claude-code, codex, codebase-inspection]
 ---
 
-# iOS 开发工作流 v3.1 — Hermes 调度 + Claude Code & Codex 双执行线
+# iOS 开发工作流
 
 ## 核心原理（控制论六原则）
 
@@ -233,7 +232,7 @@ print(data['result'])
 
 ## 实测案例：sendRequest 审查
 
-以下是一个完整的工作流 v3.0 测试案例，验证了双执行线模式的可行性。
+以下是一个完整的双执行线模式测试案例。
 
 ### Phase 0: 需求拆分（Hermes）
 
@@ -377,7 +376,6 @@ func handleFailure(_ error: Error) {
 - README: 一句话描述 → 适用场景（列表）→ 核心原理（表格）→ 快速使用（命令）→ 文件结构（树形图）→ License
 - SKILL: YAML frontmatter → 核心原理（列表）→ 流程/规则（分层）→ 示例（✓/✗ 对比）
 - 避免冗长的段落，优先使用表格、列表、代码块
-- 版本历史用表格，不要详细的 changelog
 
 ## 常见 Pitfalls
 
@@ -414,32 +412,32 @@ func handleFailure(_ error: Error) {
 8. **泛型闭包类型推断** — 泛型参数在闭包捕获后可能丢失，需要显式传入类型
 9. **@MainActor 级联** — 调用 @MainActor 方法的函数自己也必须是 @MainActor
 10. **defer + DispatchQueue.main.async** — defer 在闭包外部执行，需要在 async block 内部手动调用
-11. **Agora SDK `didAudioSubscribeStateChange` 不触发** — Agora SDK 4.6.2 在当前配置下不会触发此回调，即使设置了 `enableAudioVolumeIndication`（joinChannel 前后均调用）和 `enableAudioRecordingOrPlayout = true`。**修复**: 使用 `remoteUserDidJoin` 作为握手触发备用方案，在 `remoteUserDidJoin` 中调用 `handshakeGate.markAudioSubscribed()` + `performHandshakeIfReady()`。详见 `references/agora-subscribe-state-callback.md`
+11. **Agora SDK `didAudioSubscribeStateChange` 不触发** — Agora SDK 4.6.2 在当前配置下不会触发此回调，即使设置了 `enableAudioVolumeIndication`（joinChannel 前后均调用）和 `enableAudioRecordingOrPlayout = true`。**修复**: 使用 `remoteUserDidJoin` 作为握手触发备用方案，在 `remoteUserDidJoin` 中调用 `handshakeGate.markAudioSubscribed()` + `performHandshakeIfReady()`
 12. **SPM iOS-only 包命令行编译失败** — `swift build` 默认编译 macOS，但 `Package.swift` 只声明 `.iOS(.v16)` 平台时会报 SmartCodable macOS 版本不兼容。**修复**: 用 `xcodebuild -sdk iphonesimulator` 编译，或用 `swiftc -parse -sdk $(xcrun --sdk iphonesimulator --show-sdk-path) -target arm64-apple-ios16.0-simulator` 做语法检查。不要用 `swift build` 编译 iOS-only 包
 13. **Swift extension 访问 private 属性** — Swift extension 无法访问 `private` 属性。**修复**: 将需要跨文件访问的属性改为 `internal`（默认），或添加 `internal` 计算属性暴露给 extension。常见于 `NetworkClient.session`、`NetworkClient.networkClient` 等场景
 14. **SmartCodable 类型歧义** — 同一 Module 中两个文件定义了同名类型（如 `JSONResponse`），Xcode 报 "ambiguous for type lookup"。**修复**: 搜索确认只有一个定义，删除重复。常见于从旧代码复制 Model 时忘记删除原定义
 15. **SmartCodable conformance** — `SmartCodableX` 要求同时满足 `Decodable + Encodable`，响应 Model 只需解码时应使用 `SmartCodable.SmartDecodable`（仅需 `Decodable + init()`）。**错误**: `Type 'X' does not conform to protocol 'SmartDecodable'`。**修复**: `typealias SmartDecodable = SmartCodable.SmartDecodable` + `required init() { ... }`
 16. **SPM 扩展中泛型约束** — extension 中调用 `send(_:)` 时，如果 target 的 `Response` 类型是泛型参数，编译器无法推断 `response.json`。**修复**: 用 `some Protocol` 语法约束参数类型，或显式声明 `(result: Result<ConcreteType, HTTPError>)` 帮助编译器推断
 17. **眼镜 BLE 音频流不停止** — 语音会话结束后眼镜持续发送 `type: 3, len: 656` 音频帧。**原因**: `VoiceCaptureController.stopCapture()` 发送的 BLE 停止命令可能未成功执行。**排查**: 搜索日志 `GlassVoiceCapture` 确认是否发送了 `mic ok=false`、`AI status finished`、`micPickup stop`、`voice enter disable` 命令
-18. **stale currentModel 导致断连设备显示连接态** — 多设备场景下 `applyCurrentBleConnectionState` 的兜底分支会保留 `currentModel.value` 的旧 connected 态，即使 BLE live 已切换到另一设备。**修复**: 兜底分支增加 live 设备一致性检查，如果 `liveHeadset` 已指向另一设备则 reset 而非 preserve。详见 `references/ble-multi-device-state-pitfalls.md`
+18. **stale currentModel 导致断连设备显示连接态** — 多设备场景下 `applyCurrentBleConnectionState` 的兜底分支会保留 `currentModel.value` 的旧 connected 态，即使 BLE live 已切换到另一设备。**修复**: 兜底分支增加 live 设备一致性检查，如果 `liveHeadset` 已指向另一设备则 reset 而非 preserve
 19. **pair_connectionStatus 条件过严导致仓电量不刷新** — `handleDeviceAddedSuccess` 中 `startBoxObserve()` 被 `pair_connectionStatus == .connected` 前置条件阻断，新搜索添加的设备仓电量从不刷新。**修复**: 移除前置条件，`startBoxObserve` 内部有 `isBoxLiveConnected` + `fetchedBoxInitialStateKeys` 自行保护
 20. **isBoxAddDevice MAC 混淆导致仓回调归属错误** — 仓添加设备的 `mac_adress` 实为仓 MAC，`connect()` 用此 MAC 发起重连时实际连的是仓，`connectionStatusBlock` 收到 `.HeadsetCharging` 回调后可能错误更新耳机主连接态。**修复**: 仓回调走独立路径 `applyBoxConnectedCallback`，仅写 pair 态不写 connectionStatus
-21. **debounced 订阅竞态导致顶栏 icon 错位** — `viewWillAppear` 的 `refreshOnAppear` 和搜索页 `addSuccess` 闭包（0.2s 延迟）存在竞态。中间窗口 dataSource debounced 订阅可能用旧顺序刷新顶栏，后续 `handleDeviceAddedSuccess` 更新 dataSource 后 `reloadData()` 和之前的 `reloadItems` 冲突，导致第一个 cell 的 icon 停留在旧设备图片。**修复**: 新增 `deviceListDirectRefresh`（`PublishRelay<Void>`），`handleDeviceAddedSuccess` 完成后直接通知控制器刷新顶栏，绕过 200ms debounce。通用模式：**当 debounced 订阅和非 debounced 事件存在时序竞争时，为关键路径增加不经 debounce 的直接刷新通道**。详见 `references/ble-multi-device-state-pitfalls.md`
-22. **GitHub 仓库隐私清理（多轮扫描）** — 发布到公开仓库前必须**多轮扫描**，每轮聚焦不同维度：第一轮：个人路径（`/Users/xxx/...`→`~/Projects/...`）；第二轮：项目名/品牌名（YourApp→YourApp, OtherApp→OtherApp）；第三轮：文件名中的项目名（需 `git mv` 重命名）；第四轮：版本历史中的本地工作细节、提交信息中的项目引用；第五轮：references 目录中的项目特定内容。**关键教训**: 一次扫描不够，用户会发现遗漏，需要多次清理+重新推送。详见 `references/github-privacy-sanitization.md`
+21. **debounced 订阅竞态导致顶栏 icon 错位** — `viewWillAppear` 的 `refreshOnAppear` 和搜索页 `addSuccess` 闭包（0.2s 延迟）存在竞态。中间窗口 dataSource debounced 订阅可能用旧顺序刷新顶栏，后续 `handleDeviceAddedSuccess` 更新 dataSource 后 `reloadData()` 和之前的 `reloadItems` 冲突，导致第一个 cell 的 icon 停留在旧设备图片。**修复**: 新增 `deviceListDirectRefresh`（`PublishRelay<Void>`），`handleDeviceAddedSuccess` 完成后直接通知控制器刷新顶栏，绕过 200ms debounce。通用模式：**当 debounced 订阅和非 debounced 事件存在时序竞争时，为关键路径增加不经 debounce 的直接刷新通道**
+22. **GitHub 仓库隐私清理（多轮扫描）** — 发布到公开仓库前必须**多轮扫描**，每轮聚焦不同维度：第一轮：个人路径（`/Users/xxx/...`→`~/Projects/...`）；第二轮：项目名/品牌名（YourApp→YourApp, OtherApp→OtherApp）；第三轮：文件名中的项目名（需 `git mv` 重命名）；第四轮：版本历史中的本地工作细节、提交信息中的项目引用；第五轮：references 目录中的项目特定内容。**关键教训**: 一次扫描不够，用户会发现遗漏，需要多次清理+重新推送
 23. **gh repo delete 需要 delete_repo scope** — `gh auth refresh -h github.com -s delete_repo` 需要浏览器授权（device flow），CLI 中会超时。**修复**: 手动在 GitHub 网页 Settings → Danger Zone 删除，或让用户在浏览器中完成 device flow 授权
-24. **SmartCodable 6.x `SmartCodableX` vs `SmartDecodable`** — NetworkCore 的 `typealias SmartDecodable = SmartCodableX` 要求同时满足 `Decodable + Encodable`，但 `JSONResponse` 等只解码不编码的类型无法满足 `Encodable`。**修复**: 改为 `typealias SmartDecodable = SmartCodable.SmartDecodable`（仅需 `Decodable + init()`），并给 `JSONResponse` 添加 `required init()`。详见 `references/swift-module-design-patterns.md`
-25. **AFNetworking → Alamofire 迁移** — 网络层迁移模式：模块拆分（NetworkCore 通用 + ServiceType 业务）、@_exported import、Target 协议设计、Sign 签名收敛。详见 `references/network-layer-migration-afnetworking-to-alamofire.md`
+24. **SmartCodable 6.x `SmartCodableX` vs `SmartDecodable`** — NetworkCore 的 `typealias SmartDecodable = SmartCodableX` 要求同时满足 `Decodable + Encodable`，但 `JSONResponse` 等只解码不编码的类型无法满足 `Encodable`。**修复**: 改为 `typealias SmartDecodable = SmartCodable.SmartDecodable`（仅需 `Decodable + init()`），并给 `JSONResponse` 添加 `required init()`
+25. **AFNetworking → Alamofire 迁移** — 网络层迁移模式：模块拆分（NetworkCore 通用 + ServiceType 业务）、@_exported import、Target 协议设计、Sign 签名收敛
 26. **NSKeyedUnarchiver 类名迁移** — 移动类到不同模块时，旧归档数据的类名不匹配会导致解码失败。**修复**: 捕获异常后清除旧缓存数据，让用户重新登录
 27. **API uid 参数类型** — 旧 ServiceLayerAPI 接受 Int 类型的 uid，新 API 定义使用 String。所有 uid 参数必须用 `"\(userId)"` 转换
-28. **Swift 模块依赖不自动传递 import** — SPM 模块 A 依赖模块 B，模块 C 依赖模块 A，但 C 的文件仍需 `import B` 才能使用 B 的类型。**修复**: 在模块 A 入口使用 `@_exported import B`，或在 Package.swift 中显式声明依赖，或给需要的类型添加 `public typealias`。详见 `references/swift-module-design-patterns.md`
+28. **Swift 模块依赖不自动传递 import** — SPM 模块 A 依赖模块 B，模块 C 依赖模块 A，但 C 的文件仍需 `import B` 才能使用 B 的类型。**修复**: 在模块 A 入口使用 `@_exported import B`，或在 Package.swift 中显式声明依赖，或给需要的类型添加 `public typealias`
 29. **`fatalError` 作为协议默认实现的风险** — 协议扩展中的 `fatalError()` 默认实现会在 mock/自定义实现未覆盖时崩溃。**修复**: 使用独立 capability 协议（如 `NetworkUploadCapable`），仅在具体实现类中提供 upload/download 方法，协议扩展不提供默认实现
-30. **Swift Package 模块拆分** — 将单体 SPM 模块拆分为通用库+业务层时：(a) 业务层入口用 `@_exported import 通用库`，消费者只需 `import 业务层`；(b) 如果通用库依赖 Alamofire，用 `public typealias HTTPMethod = Alamofire.HTTPMethod` 导出，业务层不再直接依赖 Alamofire；(c) 业务特定的 Plugin（如 SignPlugin）放在业务层，通用 Plugin（Auth/Logger/RequestID）留在通用库；(d) 配置类不要用 extension 给通用库的类添加业务属性，用独立的 `XxxConfiguration` enum 持有。详见 `references/networkkit-module-splitting.md`
-31. **NSLock + @MainActor 混用死锁** — `@MainActor` 方法内部调用 `NSLock.lock()` 可能死锁（其他线程持锁时等待主线程）。**修复**: (a) 分离锁：`authLock` 保护 authPlugin，`withLock` 保护其他配置；(b) 不要在 `@MainActor` 方法内持有 NSLock 的同时依赖 MainActor；(c) 共享可变状态用计算属性+锁包装，不要直接暴露 `var`。详见 `references/networkkit-thread-safety.md`
+30. **Swift Package 模块拆分** — 将单体 SPM 模块拆分为通用库+业务层时：(a) 业务层入口用 `@_exported import 通用库`，消费者只需 `import 业务层`；(b) 如果通用库依赖 Alamofire，用 `public typealias HTTPMethod = Alamofire.HTTPMethod` 导出，业务层不再直接依赖 Alamofire；(c) 业务特定的 Plugin（如 SignPlugin）放在业务层，通用 Plugin（Auth/Logger/RequestID）留在通用库；(d) 配置类不要用 extension 给通用库的类添加业务属性，用独立的 `XxxConfiguration` enum 持有
+31. **NSLock + @MainActor 混用死锁** — `@MainActor` 方法内部调用 `NSLock.lock()` 可能死锁（其他线程持锁时等待主线程）。**修复**: (a) 分离锁：`authLock` 保护 authPlugin，`withLock` 保护其他配置；(b) 不要在 `@MainActor` 方法内持有 NSLock 的同时依赖 MainActor；(c) 共享可变状态用计算属性+锁包装，不要直接暴露 `var`
 32. **Swift Package 编译验证** — SPM 命令行 `swift build` 默认编译 macOS，iOS-only 包会报平台版本错误。**修复**: 用 `swiftc -parse -sdk $(xcrun --sdk iphonesimulator --show-sdk-path) -target arm64-apple-ios16.0-simulator` 做语法检查，或用 Xcode 的 `xcodebuild` 编译
 33. **Alamofire API 参数顺序** — `session.download()` 的 `requestModifier` 参数必须在 `to` 之前，否则编译报错 `Argument 'requestModifier' must precede argument 'to'`
-34. **系统音量同步到 BLE 设备** — iOS 没有公开 API 直接监听音量键，需要监听私有通知 `AVSystemController_SystemVolumeDidChangeNotification`，通过 `AVAudioSession.sharedInstance().outputVolume` 获取当前音量（0.0-1.0），转换为 0-100 后通过 BLE 同步到设备。详见 `references/system-volume-sync-pattern.md`
-35. **iOS 大型网络层迁移模式（AFNetworking → Alamofire）** — 迁移旧 ObjC 网络栈到纯 Swift 时，推荐模式：①在新层创建 `BusinessTarget` 协议统一签名逻辑；②每个 API 域一个枚举（AccountAPI/DeviceAPI/GlassesAPI）；③提供 `sendRequest()` 兼容旧回调签名 `(Bool, [String: Any]?, String?)`；④业务层逐文件迁移 import + 调用。**模块拆分**: 当通用网络库膨胀了业务代码时，拆分为 `NetworkCore`（通用，零业务依赖）+ `ServiceType`（业务层，依赖 NetworkCore）。详见 `references/networkkit-architecture-and-review.md`
-36. **NetworkCore 线程安全模式** — ①`plugins` 用 `let` 而非 `var`（init 后不可变）；②`authPlugin` 用独立 `authLock` 保护，不与 `withLock` 混用避免死锁；③`voiceChatClientContext` 用计算属性 + `withLock` 保护读写；④`willSend` 不依赖 Alamofire 内部 API（`onURLRequestCreation`），手动构造 URLRequest 调用；⑤token 刷新重试时传 `plugins: []` 避免 willSend 重复触发；⑥所有 completion 回调统一通过 `DispatchQueue.main.async` 派发。详见 `references/networkkit-thread-safety-patterns.md`
+34. **系统音量同步到 BLE 设备** — iOS 没有公开 API 直接监听音量键，需要监听私有通知 `AVSystemController_SystemVolumeDidChangeNotification`，通过 `AVAudioSession.sharedInstance().outputVolume` 获取当前音量（0.0-1.0），转换为 0-100 后通过 BLE 同步到设备
+35. **iOS 大型网络层迁移模式（AFNetworking → Alamofire）** — 迁移旧 ObjC 网络栈到纯 Swift 时，推荐模式：①在新层创建 `BusinessTarget` 协议统一签名逻辑；②每个 API 域一个枚举（AccountAPI/DeviceAPI/GlassesAPI）；③提供 `sendRequest()` 兼容旧回调签名 `(Bool, [String: Any]?, String?)`；④业务层逐文件迁移 import + 调用。**模块拆分**: 当通用网络库膨胀了业务代码时，拆分为 `NetworkCore`（通用，零业务依赖）+ `ServiceType`（业务层，依赖 NetworkCore）
+36. **NetworkCore 线程安全模式** — ①`plugins` 用 `let` 而非 `var`（init 后不可变）；②`authPlugin` 用独立 `authLock` 保护，不与 `withLock` 混用避免死锁；③`voiceChatClientContext` 用计算属性 + `withLock` 保护读写；④`willSend` 不依赖 Alamofire 内部 API（`onURLRequestCreation`），手动构造 URLRequest 调用；⑤token 刷新重试时传 `plugins: []` 避免 willSend 重复触发；⑥所有 completion 回调统一通过 `DispatchQueue.main.async` 派发
 37. **协议扩展 fatalError 陷阱** — 协议扩展中的默认实现不应 `fatalError()`，运行时会崩溃。**修复**: 引入子协议（如 `NetworkUploadCapable`），仅在具体类型（`NetworkClient`）中实现 upload/download，调用方通过 `as? NetworkUploadCapable` 检查能力
 38. **AnyCodable 递归编码** — `[Any]` 编码时不能 `compactMap { "\($0)" }` 转字符串（丢失类型）。**修复**: 递归编码，对 `[Any]` → `array.map { AnyCodable(value: $0) }`，对 `[String: Any]` → `dict.mapValues { AnyCodable(value: $0) }`，需添加 `init(value: Any)` 构造器
 39. **CryptoKit 替代 CommonCrypto** — `CC_MD5` 在 iOS 13+ 废弃。**修复**: `import CryptoKit`，使用 `Insecure.MD5.hash(data:)` 计算 MD5，无需手动管理 buffer
@@ -449,7 +447,7 @@ func handleFailure(_ error: Error) {
 43. **ObjC 模块移除时的类型迁移** — 移除 ObjC Pod 模块（如 DomainNetwork/ServiceLayer）前，需将业务层依赖的 Model 类型（如 `User.swift`、`UserManager.swift`）复制到 Swift 项目目录，并在 Xcode 中手动添加到 target。否则会报 `Cannot find 'Xxx' in scope`
 44. **delegate_task 大批量迁移超时** — Claude Code 委托 49+ 文件迁移会在 10 分钟超时。**修复**: 分批委托（每批 10-15 个文件），或用 `execute_code` 脚本做批量 import 替换，再委托 Claude Code 处理复杂的 API 调用迁移
 45. **DomainNetworkCore.multipartFormRequest 替换** — 旧代码使用 `DomainNetworkCore.multipartFormRequest`（如 crash reporting）不应迁移到新网络层，应改用 `URLSession` 直接实现。Crash reporting 应独立于 App 网络层，避免网络层未初始化时无法上报
-46. **JSONResponse 类型安全陷阱** — `NetworkTargetType` 的 `associatedtype Response: SmartDecodable` 设计初衷是编译时绑定响应类型，但如果所有 Target 都用 `JSONResponse`（即 `[String: Any]`），类型安全完全失效。**修复**: 为高频 API 定义专用 Response Model，至少登录/用户信息/设备列表应优先迁移。详见 `references/networkkit-architecture-and-review.md`
+46. **JSONResponse 类型安全陷阱** — `NetworkTargetType` 的 `associatedtype Response: SmartDecodable` 设计初衷是编译时绑定响应类型，但如果所有 Target 都用 `JSONResponse`（即 `[String: Any]`），类型安全完全失效。**修复**: 为高频 API 定义专用 Response Model，至少登录/用户信息/设备列表应优先迁移
 47. **HTTPSession.makeFromEnvironment() 未被调用** — `HTTPSession.makeDefault()` 创建了带 `RetryPolicy` 的 Session，但 `NetworkCore.shared` 使用的是 `Session.default`，重试逻辑完全无效。**修复**: 在 `NetworkCore.shared` 初始化中使用 `HTTPSession.makeFromEnvironment()` 创建 Session
 48. **@MainActor 隔离路径不一致** — callback 路径用 `DispatchQueue.main.async { Task { @MainActor in ... } }`，async 路径直接 `await authPlugin.refreshTokenIfNeeded()`。两种路径的 actor 上下文切换方式不同。**修复**: 统一使用 `await MainActor.run { }` 替代 `DispatchQueue.main.async`
 49. **BusinessTarget 必须包含完整 headers** — 旧 ServiceLayerAPI 的 headers 包含 Timestamp/Token/Customer/Language，新 BusinessTarget 必须保持一致。如果 headers 缺少字段，服务器返回 "请求参数异常" (code 20101)。**修复**: headers 从 `UserManager.shared.user?.token` 或 `NetworkCoreConfiguration.shared.mergedHeaders(for: .bizAPI)` 获取 token
@@ -468,4 +466,3 @@ func handleFailure(_ error: Error) {
 62. **enableTokenRefreshRetry 数据竞争** — `NetworkClient.enableTokenRefreshRetry` 是可变公开属性，无同步保护。`send` 方法在回调线程读取，调用方可在任意线程写入。**修复**: 改为 `@Atomic` 或 `let`
 63. **闭包版 vs async 版 send 回调线程不一致** — 闭包版 `send` 保证主线程回调（`DispatchQueue.main.async`），async 版 `send` 的 continuation 在 `networkClient` 回调线程 resume，不保证主线程。**修复**: async 版 `performSend` 中用 `@MainActor` 确保恢复到主线程
 64. **token 刷新重试跳过所有插件** — `send` 方法 token 刷新重试时传 `plugins: []`，跳过所有插件（包括 logging、analytics、certificate pinning）。如果某些插件对请求正确性有影响（如添加签名 header），重试请求可能失败。**修复**: 区分"一次性插件"和"始终需要的插件"
-

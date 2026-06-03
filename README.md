@@ -78,19 +78,6 @@ cp SKILL.md ~/.hermes/skills/software-development/ios-dev-workflow/
 - Codex CLI（第二执行线：验证/备选）
 - Swift 5.9+
 
-## 文件结构
-
-```
-.
-├── README.md          ← 你正在看的这个
-├── SKILL.md           ← 完整工作流文档（Hermes skill 格式）
-└── references/        ← 参考文档
-    ├── networkkit-architecture-and-review.md
-    ├── network-layer-migration-afnetworking-to-alamofire.md
-    ├── github-privacy-sanitization.md
-    └── ...
-```
-
 ## License
 
 MIT
